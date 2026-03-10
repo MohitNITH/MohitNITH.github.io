@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pantry — Smart Grocery Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1815;
+    --surface2: #242220;
+    --surface3: #2e2b28;
+    --accent: #e8b86d;
+    --accent2: #d4845a;
+    --accent3: #7eb89a;
+    --danger: #e06c75;
+    --warn: #e5c07b;
+    --text: #f0ece4;
+    --text2: #a09880;
+    --text3: #6a6255;
+    --border: #302c28;
+    --radius: 14px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background */
+  body::before {
+    content:'';
+    position:fixed;
+    top:-200px; left:-200px;
+    width:600px; height:600px;
+    background: radial-gradient(circle, rgba(232,184,109,0.07) 0%, transparent 70%);
+    pointer-events:none; z-index:0;
+  }
+  body::after {
+    content:'';
+    position:fixed;
+    bottom:-150px; right:-150px;
+    width:500px; height:500px;
+    background: radial-gradient(circle, rgba(126,184,154,0.06) 0%, transparent 70%);
+    pointer-events:none; z-index:0;
+  }
+
+  /* LAYOUT */
+  .app { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:0 20px 40px; }
+
+  /* HEADER */
+  header {
+    padding: 32px 0 24px;
+    display: flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .logo {
+    display:flex; align-items:center; gap:12px;
+  }
+  .logo-icon {
+    width:40px; height:40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+  }
+  .logo h1 {
+    font-family: 'Playfair Display', serif;
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:-0.5px;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+  .header-date {
+    font-family: 'DM Mono', monospace;
+    font-size:12px;
+    color: var(--text3);
+    text-align:right;
+  }
+
+  /* TABS */
+  .tabs {
+    display:flex; gap:6px;
+    background: var(--surface);
+    padding:5px;
+    border-radius:12px;
+    margin-bottom:28px;
+    border:1px solid var(--border);
+  }
+  .tab {
+    flex:1; padding:10px 8px;
+    border:none; background:transparent;
+    color: var(--text2);
+    font-family:'DM Sans',sans-serif;
+    font-size:13px; font-weight:500;
+    border-radius:8px;
+    cursor:pointer;
+    transition:all 0.2s;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .tab:hover { color:var(--text); background:var(--surface2); }
+  .tab.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #1a1008;
+    font-weight:600;
+  }
+  .tab-badge {
+    background:rgba(0,0,0,0.25);
+    border-radius:20px;
+    padding:1px 7px;
+    font-size:11px;
+    font-family:'DM Mono',monospace;
+  }
+  .tab.active .tab-badge { background:rgba(0,0,0,0.2); }
+
+  /* PANELS */
+  .panel { display:none; }
+  .panel.active { display:block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* STATS ROW */
+  .stats {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+    margin-bottom:28px;
+  }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:18px;
+    position:relative; overflow:hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+  .stat-card::before {
+    content:''; position:absolute;
+    top:0; left:0; right:0; height:2px;
+  }
+  .stat-card.gold::before { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .stat-card.green::before { background: linear-gradient(90deg, var(--accent3), #5ba87a); }
+  .stat-card.red::before { background: linear-gradient(90deg, var(--danger), #c0575f); }
+  .stat-card.blue::before { background: linear-gradient(90deg, #61afef, #4a8fd4); }
+  .stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .stat-val { font-family:'Playfair Display',serif; font-size:28px; font-weight:700; }
+  .stat-sub { font-size:11px; color:var(--text3); margin-top:4px; }
+
+  /* ADD ITEM FORM */
+  .add-section {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:22px;
+    margin-bottom:24px;
+  }
+  .add-section h3 {
+    font-family:'Playfair Display',serif;
+    font-size:16px; margin-bottom:16px;
+    color:var(--accent);
+  }
+  .form-row { display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:10px; align-items:end; }
+  .form-row-2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:10px; }
+
+  label { display:block; font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:5px; }
+  input, select, textarea {
+    width:100%; padding:10px 14px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:14px;
+    outline:none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+  select option { background:var(--surface2); }
+
+  .btn {
+    padding:10px 20px; border:none; border-radius:8px;
+    font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600;
+    cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color:#1a1008;
+  }
+  .btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
+  .btn-ghost {
+    background:transparent; border:1px solid var(--border);
+    color:var(--text2);
+  }
+  .btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-danger { background:var(--danger); color:#fff; }
+  .btn-sm { padding:6px 12px; font-size:12px; border-radius:6px; }
+  .btn-green { background:var(--accent3); color:#0a2018; }
+
+  /* SEARCH + FILTER */
+  .toolbar {
+    display:flex; gap:10px; margin-bottom:18px; align-items:center; flex-wrap:wrap;
+  }
+  .search-wrap { position:relative; flex:1; min-width:200px; }
+  .search-wrap input { padding-left:36px; }
+  .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text3); font-size:14px; }
+  .filter-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip {
+    padding:5px 12px; border-radius:20px; font-size:12px; font-weight:500;
+    border:1px solid var(--border); background:var(--surface2); color:var(--text2);
+    cursor:pointer; transition:all 0.2s;
+  }
+  .chip.active { background:var(--accent); color:#1a1008; border-color:var(--accent); }
+  .chip:hover:not(.active) { border-color:var(--text3); color:var(--text); }
+
+  /* ITEMS GRID */
+  .items-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:14px;
+  }
+  .item-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:16px;
+    transition:all 0.25s; position:relative; overflow:hidden;
+  }
+  .item-card:hover { border-color:var(--surface3); box-shadow:0 4px 20px rgba(0,0,0,0.3); transform:translateY(-1px); }
+  .item-card.low-stock { border-color: rgba(224,108,117,0.4); }
+  .item-card.low-stock::after {
+    content:'LOW';
+    position:absolute; top:12px; right:12px;
+    font-size:9px; font-weight:700; letter-spacing:1.5px;
+    background:var(--danger); color:#fff;
+    padding:2px 6px; border-radius:4px;
+  }
+  .item-card.out-of-stock { border-color:rgba(224,108,117,0.6); opacity:0.7; }
+  .item-card.out-of-stock::after { content:'OUT'; background:#8b2a31; }
+
+  .item-emoji { font-size:28px; margin-bottom:8px; display:block; }
+  .item-name {
+    font-family:'Playfair Display',serif;
+    font-size:17px; font-weight:700;
+    margin-bottom:3px;
+  }
+  .item-category {
+    font-size:11px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.8px;
+    margin-bottom:12px;
+  }
+
+  .stock-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .stock-label { font-size:12px; color:var(--text2); flex:1; }
+  .stock-bar { height:5px; background:var(--surface3); border-radius:3px; flex:2; overflow:hidden; }
+  .stock-fill { height:100%; border-radius:3px; transition:width 0.4s ease; }
+  .stock-count { font-family:'DM Mono',monospace; font-size:12px; color:var(--text2); min-width:40px; text-align:right; }
+
+  .item-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .meta-tag {
+    font-size:10px; padding:2px 8px; border-radius:4px;
+    background:var(--surface3); color:var(--text2);
+    font-family:'DM Mono',monospace;
+  }
+  .meta-tag.price { color:var(--accent); }
+  .meta-tag.remind { color:var(--warn); }
+
+  .item-actions { display:flex; gap:6px; }
+  .qty-btn {
+    width:28px; height:28px; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text);
+    border-radius:6px; cursor:pointer; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s;
+  }
+  .qty-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .qty-display {
+    min-width:36px; text-align:center;
+    font-family:'DM Mono',monospace; font-size:14px;
+    color:var(--text); line-height:28px;
+  }
+  .item-action-btns { display:flex; gap:5px; margin-left:auto; }
+
+  /* SHOPPING LIST */
+  .shopping-list { }
+  .shop-section { margin-bottom:24px; }
+  .shop-section-title {
+    font-size:11px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--text3); margin-bottom:10px;
+    padding-bottom:6px; border-bottom:1px solid var(--border);
+  }
+  .shop-item {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; margin-bottom:8px;
+    transition:all 0.2s;
+  }
+  .shop-item:hover { border-color:var(--surface3); }
+  .shop-item.bought { opacity:0.45; }
+  .shop-item.bought .shop-name { text-decoration:line-through; }
+  .shop-check {
+    width:20px; height:20px; border:2px solid var(--border);
+    border-radius:5px; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.2s;
+  }
+  .shop-check.checked { background:var(--accent3); border-color:var(--accent3); color:#0a2018; }
+  .shop-emoji { font-size:18px; }
+  .shop-name { flex:1; font-size:14px; font-weight:500; }
+  .shop-qty { font-family:'DM Mono',monospace; font-size:12px; color:var(--text3); }
+  .shop-price { font-family:'DM Mono',monospace; font-size:12px; color:var(--accent); }
+
+  .export-bar {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px; flex-wrap:wrap; gap:10px;
+  }
+  .export-bar span { font-size:14px; color:var(--text2); }
+  .export-bar strong { color:var(--text); }
+  .export-btns { display:flex; gap:8px; }
+
+  /* REMINDERS */
+  .reminders-list { }
+  .reminder-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:16px 18px;
+    margin-bottom:10px; display:flex; align-items:center; gap:14px;
+    transition:all 0.2s;
+  }
+  .reminder-card:hover { border-color:var(--surface3); }
+  .reminder-dot {
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  }
+  .reminder-dot.active { background:var(--accent3); box-shadow:0 0 8px var(--accent3); }
+  .reminder-dot.soon { background:var(--warn); box-shadow:0 0 8px var(--warn); }
+  .reminder-dot.overdue { background:var(--danger); box-shadow:0 0 8px var(--danger); animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .reminder-info { flex:1; }
+  .reminder-title { font-size:14px; font-weight:600; margin-bottom:2px; }
+  .reminder-date { font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; }
+  .reminder-badge {
+    font-size:10px; padding:3px 8px; border-radius:4px;
+    background:var(--surface3); color:var(--text2); letter-spacing:0.5px;
+  }
+
+  /* TRANSACTIONS */
+  .transaction-import {
+    background:var(--surface); border:2px dashed var(--border);
+    border-radius:var(--radius); padding:30px;
+    text-align:center; margin-bottom:20px;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .transaction-import:hover { border-color:var(--accent); }
+  .transaction-import .icon { font-size:32px; margin-bottom:10px; }
+  .transaction-import p { color:var(--text2); font-size:14px; margin-bottom:4px; }
+  .transaction-import small { color:var(--text3); font-size:12px; }
+
+  .txn-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:14px 18px;
+    margin-bottom:8px; display:flex; align-items:center; gap:14px;
+    transition:all 0.2s;
+  }
+  .txn-card:hover { border-color:var(--surface3); }
+  .txn-icon {
+    width:38px; height:38px; border-radius:9px;
+    background:var(--surface3); display:flex; align-items:center; justify-content:center;
+    font-size:18px; flex-shrink:0;
+  }
+  .txn-info { flex:1; }
+  .txn-name { font-size:14px; font-weight:500; margin-bottom:2px; }
+  .txn-date { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; }
+  .txn-amount {
+    font-family:'DM Mono',monospace; font-weight:600;
+    color:var(--accent); font-size:15px;
+  }
+  .txn-match {
+    font-size:10px; padding:2px 7px; border-radius:4px;
+    background:rgba(126,184,154,0.15); color:var(--accent3);
+    border:1px solid rgba(126,184,154,0.3);
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7);
+    backdrop-filter:blur(4px); z-index:100;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px; display:none;
+  }
+  .modal-overlay.open { display:flex; animation:fadeIn 0.2s; }
+  .modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:18px; padding:28px;
+    width:100%; max-width:460px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal h3 {
+    font-family:'Playfair Display',serif; font-size:20px;
+    margin-bottom:20px; color:var(--accent);
+  }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align:center; padding:50px 20px;
+    color:var(--text3);
+  }
+  .empty .e-icon { font-size:40px; margin-bottom:12px; opacity:0.5; }
+  .empty p { font-size:14px; }
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:24px; right:24px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:10px; padding:12px 18px;
+    font-size:13px; color:var(--text);
+    box-shadow:var(--shadow); z-index:200;
+    transform:translateY(80px); opacity:0;
+    transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.success { border-left:3px solid var(--accent3); }
+  .toast.warn { border-left:3px solid var(--warn); }
+  .toast.error { border-left:3px solid var(--danger); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:3px; }
+
+  @media(max-width:700px) {
+    .stats { grid-template-columns:repeat(2,1fr); }
+    .form-row { grid-template-columns:1fr 1fr; }
+    .form-row > *:last-child { grid-column:span 2; }
+    .items-grid { grid-template-columns:1fr; }
+    .tab span.tab-label { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🥬</div>
+      <h1>Pan<span>try</span></h1>
+    </div>
+    <div class="header-date" id="headerDate"></div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('inventory')">
+      📦 <span class="tab-label">Inventory</span> <span class="tab-badge" id="invBadge">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('shopping')">
+      🛒 <span class="tab-label">Shopping List</span> <span class="tab-badge" id="shopBadge">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('reminders')">
+      🔔 <span class="tab-label">Reminders</span> <span class="tab-badge" id="remBadge">0</span>
+    </button>
+    <button class="tab" onclick="switchTab('transactions')">
+      💳 <span class="tab-label">Transactions</span> <span class="tab-badge" id="txnBadge">0</span>
+    </button>
+  </div>
+
+  <!-- ========== INVENTORY PANEL ========== -->
+  <div id="panel-inventory" class="panel active">
+
+    <div class="stats">
+      <div class="stat-card gold">
+        <div class="stat-label">Total Items</div>
+        <div class="stat-val" id="statTotal">0</div>
+        <div class="stat-sub">tracked items</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">In Stock</div>
+        <div class="stat-val" id="statInStock">0</div>
+        <div class="stat-sub">well stocked</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Low / Out</div>
+        <div class="stat-val" id="statLow">0</div>
+        <div class="stat-sub">needs attention</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Monthly Spend</div>
+        <div class="stat-val" id="statSpend">₹0</div>
+        <div class="stat-sub">estimated</div>
+      </div>
+    </div>
+
+    <div class="add-section">
+      <h3>+ Add Item</h3>
+      <div class="form-row">
+        <div>
+          <label>Item Name</label>
+          <input id="inName" type="text" placeholder="e.g. Basmati Rice" onkeydown="if(event.key==='Enter')addItem()">
+        </div>
+        <div>
+          <label>Category</label>
+          <select id="inCat">
+            <option value="🥛 Dairy">🥛 Dairy</option>
+            <option value="🥬 Vegetables">🥬 Vegetables</option>
+            <option value="🍎 Fruits">🍎 Fruits</option>
+            <option value="🌾 Grains">🌾 Grains</option>
+            <option value="🥩 Meat & Fish">🥩 Meat & Fish</option>
+            <option value="🥫 Pantry">🥫 Pantry</option>
+            <option value="🧴 Personal Care">🧴 Personal Care</option>
+            <option value="🧹 Household">🧹 Household</option>
+            <option value="🍪 Snacks">🍪 Snacks</option>
+            <option value="💊 Health">💊 Health</option>
+            <option value="🥤 Beverages">🥤 Beverages</option>
+          </select>
+        </div>
+        <div>
+          <label>Quantity</label>
+          <input id="inQty" type="number" placeholder="e.g. 2" min="0" value="1">
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="inUnit">
+            <option>pcs</option><option>kg</option><option>g</option>
+            <option>L</option><option>ml</option><option>packets</option>
+            <option>bottles</option><option>boxes</option><option>cans</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="addItem()" style="width:100%;margin-top:20px">Add</button>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label>Price (₹)</label>
+          <input id="inPrice" type="number" placeholder="per unit" min="0">
+        </div>
+        <div>
+          <label>Min Stock (alert below)</label>
+          <input id="inMin" type="number" placeholder="e.g. 1" min="0" value="1">
+        </div>
+        <div>
+          <label>Notes</label>
+          <input id="inNotes" type="text" placeholder="brand, store, etc.">
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInv" placeholder="Search items..." oninput="renderInventory()">
+      </div>
+      <div class="filter-chips" id="catFilters"></div>
+    </div>
+
+    <div class="items-grid" id="inventoryGrid"></div>
+  </div>
+
+  <!-- ========== SHOPPING PANEL ========== -->
+  <div id="panel-shopping" class="panel">
+    <div class="export-bar">
+      <div>
+        <strong id="shopCount">0</strong>
+        <span> items to buy &nbsp;·&nbsp; Est. total: </span>
+        <strong id="shopTotal">₹0</strong>
+      </div>
+      <div class="export-btns">
+        <button class="btn btn-ghost btn-sm" onclick="exportList('txt')">📋 Copy List</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportList('csv')">⬇️ Export CSV</button>
+        <button class="btn btn-primary btn-sm" onclick="markAllBought()">✅ Mark All Bought</button>
+      </div>
+    </div>
+    <div class="shopping-list" id="shoppingList"></div>
+  </div>
+
+  <!-- ========== REMINDERS PANEL ========== -->
+  <div id="panel-reminders" class="panel">
+    <div class="add-section" style="margin-bottom:24px">
+      <h3>+ New Reminder</h3>
+      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr auto">
+        <div>
+          <label>Item / Note</label>
+          <input id="remTitle" type="text" placeholder="e.g. Buy milk every Sunday">
+        </div>
+        <div>
+          <label>Date</label>
+          <input id="remDate" type="date">
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="remType">
+            <option>One-time</option>
+            <option>Weekly</option>
+            <option>Monthly</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="addReminder()" style="margin-top:20px;width:100%">Set</button>
+        </div>
+      </div>
+    </div>
+    <div class="reminders-list" id="remindersList"></div>
+  </div>
+
+  <!-- ========== TRANSACTIONS PANEL ========== -->
+  <div id="panel-transactions" class="panel">
+    <div class="add-section" style="margin-bottom:20px">
+      <h3>+ Log Transaction</h3>
+      <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 1fr auto">
+        <div>
+          <label>Merchant / Description</label>
+          <input id="txnName" type="text" placeholder="e.g. Big Basket, D-Mart">
+        </div>
+        <div>
+          <label>Amount (₹)</label>
+          <input id="txnAmt" type="number" placeholder="0.00">
+        </div>
+        <div>
+          <label>Date</label>
+          <input id="txnDate" type="date">
+        </div>
+        <div>
+          <label>Link to Item</label>
+          <select id="txnItem">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="addTransaction()" style="margin-top:20px;width:100%">Log</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="transaction-import" onclick="document.getElementById('csvUpload').click()">
+      <div class="icon">📂</div>
+      <p>Import Google Pay / Bank CSV</p>
+      <small>Drop or click to import your transactions CSV — we'll auto-match to grocery items</small>
+      <input type="file" id="csvUpload" accept=".csv" style="display:none" onchange="importCSV(event)">
+    </div>
+
+    <div id="txnSummary" style="display:none" class="add-section" style="margin-bottom:20px"></div>
+    <div id="transactionsList"></div>
+  </div>
+
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Edit Item</h3>
+    <div style="display:grid;gap:12px">
+      <div><label>Name</label><input id="editName" type="text"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>Quantity</label><input id="editQty" type="number" min="0"></div>
+        <div><label>Unit</label><select id="editUnit">
+          <option>pcs</option><option>kg</option><option>g</option>
+          <option>L</option><option>ml</option><option>packets</option>
+          <option>bottles</option><option>boxes</option><option>cans</option>
+        </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label>Price (₹)</label><input id="editPrice" type="number" min="0"></div>
+        <div><label>Min Stock</label><input id="editMin" type="number" min="0"></div>
+      </div>
+      <div><label>Notes</label><input id="editNotes" type="text"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================== STATE =====================
+let state = {
+  items: [],
+  reminders: [],
+  transactions: [],
+  editId: null,
+  activeFilters: [],
+};
+
+// Load from localStorage
+function loadState() {
+  try {
+    const s = localStorage.getItem('pantry_v2');
+    if (s) state = { ...state, ...JSON.parse(s) };
+  } catch(e) {}
+}
+
+function saveState() {
+  localStorage.setItem('pantry_v2', JSON.stringify(state));
+  updateBadges();
+}
+
+// ===================== INIT =====================
+loadState();
+document.getElementById('headerDate').innerHTML =
+  new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) + '<br>' +
+  '<span style="color:var(--accent3)">Lucknow, UP</span>';
+
+// Set default dates
+document.getElementById('remDate').value = new Date().toISOString().split('T')[0];
+document.getElementById('txnDate').value = new Date().toISOString().split('T')[0];
+
+renderAll();
+
+// ===================== TABS =====================
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(tab==='shopping') renderShopping();
+  if(tab==='reminders') renderReminders();
+  if(tab==='transactions') { renderTransactions(); populateTxnItems(); }
+}
+
+function updateBadges() {
+  document.getElementById('invBadge').textContent = state.items.length;
+  document.getElementById('shopBadge').textContent = state.items.filter(i=>i.qty < i.minStock).length;
+  document.getElementById('remBadge').textContent = state.reminders.filter(r=>!r.done).length;
+  document.getElementById('txnBadge').textContent = state.transactions.length;
+}
+
+// ===================== ITEMS =====================
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+function addItem() {
+  const name = document.getElementById('inName').value.trim();
+  if(!name) { toast('Enter an item name','warn'); return; }
+  const item = {
+    id: uid(),
+    name,
+    category: document.getElementById('inCat').value,
+    qty: parseFloat(document.getElementById('inQty').value) || 0,
+    unit: document.getElementById('inUnit').value,
+    price: parseFloat(document.getElementById('inPrice').value) || 0,
+    minStock: parseFloat(document.getElementById('inMin').value) || 1,
+    notes: document.getElementById('inNotes').value.trim(),
+    added: new Date().toISOString(),
+  };
+  state.items.push(item);
+  saveState();
+  ['inName','inPrice','inNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inQty').value=1;
+  document.getElementById('inMin').value=1;
+  renderInventory();
+  toast(`${name} added ✓`,'success');
+}
+
+function deleteItem(id) {
+  state.items = state.items.filter(i=>i.id!==id);
+  saveState(); renderInventory();
+  toast('Item removed','warn');
+}
+
+function changeQty(id, delta) {
+  const item = state.items.find(i=>i.id===id);
+  if(!item) return;
+  item.qty = Math.max(0, item.qty + delta);
+  saveState(); renderInventory();
+}
+
+function openEdit(id) {
+  const item = state.items.find(i=>i.id===id);
+  if(!item) return;
+  state.editId = id;
+  document.getElementById('editName').value = item.name;
+  document.getElementById('editQty').value = item.qty;
+  document.getElementById('editUnit').value = item.unit;
+  document.getElementById('editPrice').value = item.price;
+  document.getElementById('editMin').value = item.minStock;
+  document.getElementById('editNotes').value = item.notes||'';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('editModal').classList.remove('open'); }
+
+function saveEdit() {
+  const item = state.items.find(i=>i.id===state.editId);
+  if(!item) return;
+  item.name = document.getElementById('editName').value.trim();
+  item.qty = parseFloat(document.getElementById('editQty').value)||0;
+  item.unit = document.getElementById('editUnit').value;
+  item.price = parseFloat(document.getElementById('editPrice').value)||0;
+  item.minStock = parseFloat(document.getElementById('editMin').value)||1;
+  item.notes = document.getElementById('editNotes').value.trim();
+  saveState(); closeModal(); renderInventory();
+  toast('Item updated ✓','success');
+}
+
+function getEmoji(cat) {
+  const map = {'🥛 Dairy':'🥛','🥬 Vegetables':'🥬','🍎 Fruits':'🍎','🌾 Grains':'🌾',
+    '🥩 Meat & Fish':'🥩','🥫 Pantry':'🥫','🧴 Personal Care':'🧴','🧹 Household':'🧹',
+    '🍪 Snacks':'🍪','💊 Health':'💊','🥤 Beverages':'🥤'};
+  return map[cat] || '📦';
+}
+
+function stockColor(pct) {
+  if(pct<=0) return 'var(--danger)';
+  if(pct<0.4) return 'var(--warn)';
+  return 'var(--accent3)';
+}
+
+function renderInventory() {
+  const search = document.getElementById('searchInv').value.toLowerCase();
+  const cats = [...new Set(state.items.map(i=>i.category))];
+
+  // Build filter chips
+  const fc = document.getElementById('catFilters');
+  fc.innerHTML = '<span class="chip '+(state.activeFilters.length===0?'active':'')+'" onclick="setFilter(null)">All</span>' +
+    cats.map(c=>`<span class="chip ${state.activeFilters.includes(c)?'active':''}" onclick="setFilter('${c}')">${c}</span>`).join('');
+
+  let items = state.items;
+  if(state.activeFilters.length) items = items.filter(i=>state.activeFilters.includes(i.category));
+  if(search) items = items.filter(i=>i.name.toLowerCase().includes(search)||i.category.toLowerCase().includes(search));
+
+  const grid = document.getElementById('inventoryGrid');
+  if(!items.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="e-icon">🛒</div><p>No items found. Add your first item above!</p></div>`;
+    updateStats(); return;
+  }
+
+  grid.innerHTML = items.map(item => {
+    const maxQ = Math.max(item.qty, item.minStock*3, 1);
+    const pct = Math.min(item.qty/maxQ, 1);
+    const statusClass = item.qty<=0?'out-of-stock': item.qty<=item.minStock?'low-stock':'';
+    return `
+    <div class="item-card ${statusClass}">
+      <span class="item-emoji">${getEmoji(item.category)}</span>
+      <div class="item-name">${escHtml(item.name)}</div>
+      <div class="item-category">${item.category}</div>
+      <div class="stock-row">
+        <span class="stock-label">Stock</span>
+        <div class="stock-bar"><div class="stock-fill" style="width:${pct*100}%;background:${stockColor(pct)}"></div></div>
+        <span class="stock-count">${item.qty} ${item.unit}</span>
+      </div>
+      <div class="item-meta">
+        ${item.price?`<span class="meta-tag price">₹${item.price}/${item.unit}</span>`:''}
+        <span class="meta-tag">Min: ${item.minStock}</span>
+        ${item.notes?`<span class="meta-tag" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${escHtml(item.notes)}</span>`:''}
+      </div>
+      <div class="item-actions">
+        <button class="qty-btn" onclick="changeQty('${item.id}',-1)">−</button>
+        <span class="qty-display">${item.qty}</span>
+        <button class="qty-btn" onclick="changeQty('${item.id}',1)">+</button>
+        <div class="item-action-btns">
+          <button class="btn btn-ghost btn-sm" onclick="openEdit('${item.id}')">✏️</button>
+          <button class="btn btn-sm" style="background:rgba(224,108,117,0.15);color:var(--danger);border:1px solid rgba(224,108,117,0.3)" onclick="deleteItem('${item.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  updateStats();
+}
+
+function setFilter(cat) {
+  if(!cat) { state.activeFilters = []; }
+  else {
+    const i = state.activeFilters.indexOf(cat);
+    if(i>=0) state.activeFilters.splice(i,1);
+    else state.activeFilters.push(cat);
+  }
+  renderInventory();
+}
+
+function updateStats() {
+  const low = state.items.filter(i=>i.qty<=i.minStock).length;
+  document.getElementById('statTotal').textContent = state.items.length;
+  document.getElementById('statInStock').textContent = state.items.length - low;
+  document.getElementById('statLow').textContent = low;
+  const spend = state.transactions.reduce((s,t)=>s+(parseFloat(t.amount)||0),0);
+  document.getElementById('statSpend').textContent = '₹'+spend.toLocaleString('en-IN');
+  updateBadges();
+}
+
+// ===================== SHOPPING =====================
+function renderShopping() {
+  const needBuy = state.items.filter(i=>i.qty < i.minStock);
+  document.getElementById('shopCount').textContent = needBuy.length;
+  const total = needBuy.reduce((s,i)=>s+(i.price*(i.minStock-i.qty)||0),0);
+  document.getElementById('shopTotal').textContent = '₹'+total.toLocaleString('en-IN');
+
+  const list = document.getElementById('shoppingList');
+  if(!needBuy.length) {
+    list.innerHTML = `<div class="empty"><div class="e-icon">🎉</div><p>You're all stocked up! Nothing to buy right now.</p></div>`;
+    return;
+  }
+
+  const byCat = {};
+  needBuy.forEach(i=>{
+    if(!byCat[i.category]) byCat[i.category]=[];
+    byCat[i.category].push(i);
+  });
+
+  list.innerHTML = Object.entries(byCat).map(([cat,items])=>`
+    <div class="shop-section">
+      <div class="shop-section-title">${cat}</div>
+      ${items.map(item=>{
+        const need = Math.max(0,item.minStock - item.qty);
+        const id = 'sh'+item.id;
+        return `
+        <div class="shop-item" id="${id}">
+          <div class="shop-check ${item._bought?'checked':''}" onclick="toggleBought('${item.id}','${id}')">
+            ${item._bought?'✓':''}
+          </div>
+          <span class="shop-emoji">${getEmoji(item.category)}</span>
+          <span class="shop-name ${item._bought?'bought':''}">${escHtml(item.name)}</span>
+          <span class="shop-qty">Need: ${need} ${item.unit}</span>
+          ${item.price?`<span class="shop-price">₹${(item.price*need).toLocaleString('en-IN')}</span>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+function toggleBought(itemId, elId) {
+  const item = state.items.find(i=>i.id===itemId);
+  if(!item) return;
+  item._bought = !item._bought;
+  if(item._bought) item.qty = item.minStock + 1;
+  saveState(); renderShopping();
+}
+
+function markAllBought() {
+  state.items.filter(i=>i.qty<i.minStock).forEach(i=>{ i.qty = i.minStock+1; i._bought=true; });
+  saveState(); renderShopping();
+  toast('All items marked as bought!','success');
+}
+
+function exportList(fmt) {
+  const items = state.items.filter(i=>i.qty<i.minStock);
+  if(!items.length) { toast('Nothing to export','warn'); return; }
+  if(fmt==='txt') {
+    const text = '🛒 Shopping List — '+new Date().toLocaleDateString('en-IN')+'\n\n'+
+      items.map(i=>`☐  ${i.name} — ${Math.max(0,i.minStock-i.qty)} ${i.unit}${i.price?'  (₹'+(i.price*(i.minStock-i.qty))+')':''}`).join('\n');
+    navigator.clipboard.writeText(text).then(()=>toast('List copied to clipboard!','success'));
+  } else {
+    const csv = 'Item,Category,Need,Unit,Est. Price\n'+
+      items.map(i=>`"${i.name}","${i.category}",${Math.max(0,i.minStock-i.qty)},"${i.unit}",${i.price*(i.minStock-i.qty)||0}`).join('\n');
+    downloadFile('shopping_list.csv', csv, 'text/csv');
+    toast('CSV downloaded!','success');
+  }
+}
+
+// ===================== REMINDERS =====================
+function addReminder() {
+  const title = document.getElementById('remTitle').value.trim();
+  const date = document.getElementById('remDate').value;
+  if(!title||!date) { toast('Enter title and date','warn'); return; }
+  state.reminders.push({ id:uid(), title, date, type:document.getElementById('remType').value, done:false });
+  saveState(); renderReminders();
+  document.getElementById('remTitle').value='';
+  toast('Reminder set ✓','success');
+}
+
+function renderReminders() {
+  const list = document.getElementById('remindersList');
+  const today = new Date().toISOString().split('T')[0];
+  const sorted = [...state.reminders].sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(!sorted.length) {
+    list.innerHTML = `<div class="empty"><div class="e-icon">🔔</div><p>No reminders yet. Set one above!</p></div>`;
+    return;
+  }
+
+  list.innerHTML = sorted.map(r=>{
+    const overdue = r.date < today && !r.done;
+    const soon = r.date === today && !r.done;
+    const dotCls = r.done?'':'(overdue?\'overdue\':soon?\'soon\':\'active\')';
+    const dotClass = r.done?'':overdue?'overdue':soon?'soon':'active';
+    return `
+    <div class="reminder-card" style="${r.done?'opacity:0.5':''}">
+      <div class="reminder-dot ${dotClass}"></div>
+      <div class="reminder-info">
+        <div class="reminder-title">${escHtml(r.title)}</div>
+        <div class="reminder-date">${formatDate(r.date)} · ${r.type}</div>
+      </div>
+      <span class="reminder-badge">${overdue&&!r.done?'⚠️ Overdue':r.done?'✅ Done':soon?'📅 Today':'📌 Upcoming'}</span>
+      <div style="display:flex;gap:6px;margin-left:10px">
+        ${!r.done?`<button class="btn btn-green btn-sm" onclick="doneReminder('${r.id}')">Done</button>`:''}
+        <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);color:var(--text3)" onclick="deleteReminder('${r.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  updateBadges();
+}
+
+function doneReminder(id) {
+  const r = state.reminders.find(r=>r.id===id);
+  if(r) r.done=true;
+  saveState(); renderReminders();
+}
+function deleteReminder(id) {
+  state.reminders = state.reminders.filter(r=>r.id!==id);
+  saveState(); renderReminders();
+}
+
+// ===================== TRANSACTIONS =====================
+function populateTxnItems() {
+  const sel = document.getElementById('txnItem');
+  sel.innerHTML = '<option value="">— None —</option>'+
+    state.items.map(i=>`<option value="${i.id}">${escHtml(i.name)}</option>`).join('');
+}
+
+function addTransaction() {
+  const name = document.getElementById('txnName').value.trim();
+  const amount = parseFloat(document.getElementById('txnAmt').value);
+  const date = document.getElementById('txnDate').value;
+  if(!name||!amount||!date) { toast('Fill in all transaction fields','warn'); return; }
+  const txn = {
+    id:uid(), name, amount, date,
+    linkedItem: document.getElementById('txnItem').value,
+    source:'manual'
+  };
+  state.transactions.unshift(txn);
+  saveState(); renderTransactions();
+  document.getElementById('txnName').value='';
+  document.getElementById('txnAmt').value='';
+  toast('Transaction logged ✓','success');
+}
+
+function importCSV(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const lines = ev.target.result.split('\n').filter(l=>l.trim());
+    let imported = 0;
+    const groceryKw = ['grocery','bigbasket','dmart','reliance','fresh','mart','kirana',
+      'swiggy instamart','blinkit','zepto','milk','vegetables','supermarket','nature\'s basket'];
+    lines.slice(1).forEach(line=>{
+      const cols = line.split(',').map(c=>c.replace(/^"|"$/g,'').trim());
+      if(cols.length<3) return;
+      const name = cols[0]||cols[1]||'Unknown';
+      const amount = parseFloat((cols[2]||cols[3]||'').replace(/[₹,\s]/g,''));
+      const date = cols[1]||cols[0]||new Date().toISOString().split('T')[0];
+      if(!isNaN(amount)&&amount>0) {
+        const isGrocery = groceryKw.some(kw=>name.toLowerCase().includes(kw));
+        const linkedItem = isGrocery ? autoMatchItem(name) : '';
+        state.transactions.unshift({ id:uid(), name, amount, date:parseDate(date), linkedItem, source:'import' });
+        imported++;
+      }
+    });
+    saveState(); renderTransactions();
+    toast(`${imported} transactions imported!`,'success');
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function autoMatchItem(txnName) {
+  const lower = txnName.toLowerCase();
+  return state.items.find(i=>lower.includes(i.name.toLowerCase()))?.id||'';
+}
+
+function parseDate(s) {
+  try {
+    const d = new Date(s);
+    if(!isNaN(d)) return d.toISOString().split('T')[0];
+  } catch(e){}
+  return new Date().toISOString().split('T')[0];
+}
+
+function renderTransactions() {
+  const list = document.getElementById('transactionsList');
+  if(!state.transactions.length) {
+    list.innerHTML = `<div class="empty"><div class="e-icon">💳</div><p>No transactions yet. Log one above or import a CSV.</p></div>`;
+    updateStats(); return;
+  }
+
+  const total = state.transactions.reduce((s,t)=>s+(t.amount||0),0);
+  const matched = state.transactions.filter(t=>t.linkedItem).length;
+
+  const summary = document.getElementById('txnSummary');
+  summary.style.display='block';
+  summary.innerHTML = `
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div><div class="stat-label">Total Spend</div><div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--accent)">₹${total.toLocaleString('en-IN')}</div></div>
+      <div><div class="stat-label">Transactions</div><div style="font-family:'Playfair Display',serif;font-size:22px">${state.transactions.length}</div></div>
+      <div><div class="stat-label">Linked to Items</div><div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--accent3)">${matched}</div></div>
+    </div>`;
+
+  list.innerHTML = state.transactions.map(txn=>{
+    const linked = state.items.find(i=>i.id===txn.linkedItem);
+    return `
+    <div class="txn-card">
+      <div class="txn-icon">${linked?getEmoji(linked.category):'💳'}</div>
+      <div class="txn-info">
+        <div class="txn-name">${escHtml(txn.name)} ${txn.source==='import'?'<span style="font-size:10px;color:var(--text3)">(imported)</span>':''}</div>
+        <div class="txn-date">${formatDate(txn.date)}</div>
+      </div>
+      ${linked?`<span class="txn-match">📦 ${escHtml(linked.name)}</span>`:''}
+      <div class="txn-amount">₹${parseFloat(txn.amount).toLocaleString('en-IN')}</div>
+      <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);color:var(--text3);margin-left:8px" onclick="deleteTxn('${txn.id}')">✕</button>
+    </div>`;
+  }).join('');
+  updateStats();
+}
+
+function deleteTxn(id) {
+  state.transactions = state.transactions.filter(t=>t.id!==id);
+  saveState(); renderTransactions();
+}
+
+// ===================== UTILS =====================
+function formatDate(d) {
+  try { return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+  catch(e){ return d; }
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function downloadFile(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type}));
+  a.download = name; a.click();
+}
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+function renderAll() {
+  renderInventory();
+  updateBadges();
+}
+
+// Close modal on overlay click
+document.getElementById('editModal').addEventListener('click', function(e){
+  if(e.target===this) closeModal();
+});
+
+// Check for due reminders on load
+setTimeout(()=>{
+  const today = new Date().toISOString().split('T')[0];
+  const due = state.reminders.filter(r=>!r.done && r.date<=today);
+  if(due.length) toast(`📅 You have ${due.length} reminder(s) due today!`,'warn');
+}, 800);
+</script>
+</body>
+</html>
